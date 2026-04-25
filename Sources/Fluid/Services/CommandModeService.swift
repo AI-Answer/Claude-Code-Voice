@@ -152,10 +152,59 @@ final class CommandModeService: ObservableObject {
     }
 
     struct PendingCommand {
+        enum ToolKind {
+            case terminal
+            case mcp
+        }
+
+        let kind: ToolKind
         let id: String
-        let command: String
+        let toolName: String
+        let arguments: [String: Any]
+        let argumentsJSON: String
+        let command: String?
         let workingDirectory: String?
         let purpose: String?
+
+        var isTerminalCommand: Bool {
+            self.kind == .terminal
+        }
+
+        static func terminal(
+            id: String,
+            command: String,
+            workingDirectory: String?,
+            purpose: String?
+        ) -> PendingCommand {
+            PendingCommand(
+                kind: .terminal,
+                id: id,
+                toolName: "execute_terminal_command",
+                arguments: [:],
+                argumentsJSON: "{}",
+                command: command,
+                workingDirectory: workingDirectory,
+                purpose: purpose
+            )
+        }
+
+        static func mcp(
+            id: String,
+            toolName: String,
+            arguments: [String: Any],
+            argumentsJSON: String
+        ) -> PendingCommand {
+            PendingCommand(
+                kind: .mcp,
+                id: id,
+                toolName: toolName,
+                arguments: arguments,
+                argumentsJSON: argumentsJSON,
+                command: nil,
+                workingDirectory: nil,
+                purpose: nil
+            )
+        }
     }
 
     // MARK: - Public Methods
@@ -566,17 +615,35 @@ final class CommandModeService: ObservableObject {
         self.pendingCommand = nil
         self.isProcessing = true
 
-        await self.executeCommand(
-            pending.command, workingDirectory: pending.workingDirectory, callId: pending.id)
+        switch pending.kind {
+        case .terminal:
+            guard let command = pending.command else { return }
+            await self.executeCommand(
+                command,
+                workingDirectory: pending.workingDirectory,
+                callId: pending.id,
+                purpose: pending.purpose
+            )
+        case .mcp:
+            await self.executeMCPTool(
+                name: pending.toolName,
+                arguments: pending.arguments,
+                callId: pending.id
+            )
+        }
     }
 
     /// Cancel pending command
     func cancelPendingCommand() {
+        let cancellationText =
+            self.pendingCommand?.isTerminalCommand == true
+            ? "Command cancelled."
+            : "Tool call cancelled."
         self.pendingCommand = nil
         self.conversationHistory.append(
             Message(
                 role: .assistant,
-                content: "Command cancelled.",
+                content: cancellationText,
                 stepType: .failure,
                 renderIntent: .status
             ))
@@ -681,7 +748,7 @@ final class CommandModeService: ObservableObject {
                         self.isDestructiveCommand(command)
                     {
                         self.didRequireConfirmationThisRun = true
-                        self.pendingCommand = PendingCommand(
+                        self.pendingCommand = .terminal(
                             id: tc.id,
                             command: command,
                             workingDirectory: workDir,
@@ -704,7 +771,26 @@ final class CommandModeService: ObservableObject {
                     await self.executeCommand(
                         command, workingDirectory: workDir, callId: tc.id, purpose: purpose)
                 } else {
-                    // Auto-execute MCP tool
+                    if SettingsStore.shared.commandModeConfirmBeforeExecute {
+                        self.didRequireConfirmationThisRun = true
+                        self.pendingCommand = .mcp(
+                            id: tc.id,
+                            toolName: tc.name,
+                            arguments: tc.arguments,
+                            argumentsJSON: argsJSON
+                        )
+                        self.isProcessing = false
+                        self.currentStep = nil
+
+                        if self.enableNotchOutput {
+                            NotchContentState.shared.addCommandMessage(
+                                role: .status,
+                                content: "⚠️ Confirmation needed in Command Mode window")
+                            NotchContentState.shared.setCommandProcessing(false)
+                        }
+                        return
+                    }
+
                     await self.executeMCPTool(name: tc.name, arguments: tc.arguments, callId: tc.id)
                 }
 

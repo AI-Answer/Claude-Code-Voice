@@ -36,7 +36,7 @@ struct CommandModeView: View {
             // Chat Area
             self.chatArea
 
-            // Pending Command Confirmation (if any)
+            // Pending Tool Confirmation (if any)
             if let pending = service.pendingCommand {
                 self.pendingCommandView(pending)
             }
@@ -196,7 +196,7 @@ struct CommandModeView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Confirm and run pending command")
+                    .help("Confirm and run pending tool call")
                 }
 
                 Menu {
@@ -597,7 +597,17 @@ struct CommandModeView: View {
     // MARK: - Pending Command
 
     private func pendingCommandView(_ pending: CommandModeService.PendingCommand) -> some View {
-        VStack(spacing: 10) {
+        let isTerminalCommand = pending.isTerminalCommand
+        let previewTitle = isTerminalCommand ? "Command" : "MCP Tool"
+        let previewIcon = isTerminalCommand ? "terminal.fill" : "wrench.and.screwdriver.fill"
+        let previewContent = isTerminalCommand ? (pending.command ?? "") : pending.argumentsJSON
+        let runButtonTitle = isTerminalCommand ? "Run Command" : "Run Tool"
+        let detailText =
+            pending.purpose?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? pending.purpose
+            : (isTerminalCommand ? nil : pending.toolName)
+
+        return VStack(spacing: 10) {
             Divider()
 
             HStack {
@@ -607,8 +617,8 @@ struct CommandModeView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Confirm Execution")
                         .fontWeight(.semibold)
-                    if let purpose = pending.purpose {
-                        Text(purpose)
+                    if let detailText {
+                        Text(detailText)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -616,12 +626,12 @@ struct CommandModeView: View {
                 Spacer()
             }
 
-            // Command preview
+            // Tool preview
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Image(systemName: "terminal.fill")
+                    Image(systemName: previewIcon)
                         .font(.caption)
-                    Text("Command")
+                    Text(previewTitle)
                         .font(.caption)
                         .fontWeight(.medium)
                     Spacer()
@@ -632,7 +642,7 @@ struct CommandModeView: View {
 
                 Divider()
 
-                Text(pending.command)
+                Text(previewContent)
                     .font(.system(.callout, design: .monospaced))
                     .textSelection(.enabled)
                     .padding(10)
@@ -654,7 +664,7 @@ struct CommandModeView: View {
                 Button(action: {
                     Task { await self.service.confirmAndExecute() }
                 }) {
-                    Label("Run Command", systemImage: "play.fill")
+                    Label(runButtonTitle, systemImage: "play.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.orange)
