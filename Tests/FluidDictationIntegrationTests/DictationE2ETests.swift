@@ -1,4 +1,5 @@
 import Foundation
+import UserNotifications
 import XCTest
 
 @testable import FluidVoice_Debug
@@ -1001,5 +1002,80 @@ final class MCPManagerNamingTests: XCTestCase {
 
         XCTAssertEqual(unique, String(repeating: "b", count: 62) + "_4")
         XCTAssertEqual(unique.count, 64)
+    }
+}
+
+@MainActor
+final class CommandOverlayFeedbackRoutingTests: XCTestCase {
+    func testCommandCompletionFeedbackUsesSystemNotificationForBottomOverlayPreference() {
+        XCTAssertEqual(
+            NotchOverlayManager.commandCompletionFeedbackPresentation(
+                overlayPosition: .bottom,
+                activeScreenHasHardwareNotch: true
+            ),
+            .systemNotification
+        )
+
+        XCTAssertEqual(
+            NotchOverlayManager.commandCompletionFeedbackPresentation(
+                overlayPosition: .bottom,
+                activeScreenHasHardwareNotch: false
+            ),
+            .systemNotification
+        )
+    }
+
+    func testCommandCompletionFeedbackUsesNotchOnlyForTopPreferenceOnHardwareNotchScreen() {
+        XCTAssertEqual(
+            NotchOverlayManager.commandCompletionFeedbackPresentation(
+                overlayPosition: .top,
+                activeScreenHasHardwareNotch: true
+            ),
+            .notchBadge
+        )
+
+        XCTAssertEqual(
+            NotchOverlayManager.commandCompletionFeedbackPresentation(
+                overlayPosition: .top,
+                activeScreenHasHardwareNotch: false
+            ),
+            .systemNotification
+        )
+    }
+
+    func testLiveOverlayFallsBackToBottomWhenTopPreferenceHasNoHardwareNotch() {
+        XCTAssertEqual(
+            NotchOverlayManager.liveOverlayPresentation(
+                overlayPosition: .top,
+                activeScreenHasHardwareNotch: false
+            ),
+            .bottomOverlay
+        )
+
+        XCTAssertEqual(
+            NotchOverlayManager.liveOverlayPresentation(
+                overlayPosition: .top,
+                activeScreenHasHardwareNotch: true
+            ),
+            .notchOverlay
+        )
+
+        XCTAssertEqual(
+            NotchOverlayManager.liveOverlayPresentation(
+                overlayPosition: .bottom,
+                activeScreenHasHardwareNotch: true
+            ),
+            .bottomOverlay
+        )
+    }
+}
+
+@MainActor
+final class SystemNotificationServiceTests: XCTestCase {
+    func testForegroundCommandNotificationsUseBannerPresentation() {
+        let options = SystemNotificationService.foregroundPresentationOptions
+
+        XCTAssertTrue(options.contains(.banner))
+        XCTAssertTrue(options.contains(.sound))
     }
 }

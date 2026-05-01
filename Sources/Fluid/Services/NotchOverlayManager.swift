@@ -82,6 +82,38 @@ final class NotchOverlayManager {
     private var globalEscapeMonitor: Any?
     private var localEscapeMonitor: Any?
 
+    enum LiveOverlayPresentation: Equatable {
+        case notchOverlay
+        case bottomOverlay
+    }
+
+    enum CommandCompletionFeedbackPresentation: Equatable {
+        case notchBadge
+        case systemNotification
+    }
+
+    static func liveOverlayPresentation(
+        overlayPosition: SettingsStore.OverlayPosition,
+        activeScreenHasHardwareNotch: Bool
+    ) -> LiveOverlayPresentation {
+        switch overlayPosition {
+        case .bottom:
+            return .bottomOverlay
+        case .top:
+            return activeScreenHasHardwareNotch ? .notchOverlay : .bottomOverlay
+        }
+    }
+
+    static func commandCompletionFeedbackPresentation(
+        overlayPosition: SettingsStore.OverlayPosition,
+        activeScreenHasHardwareNotch: Bool
+    ) -> CommandCompletionFeedbackPresentation {
+        guard overlayPosition == .top, activeScreenHasHardwareNotch else {
+            return .systemNotification
+        }
+        return .notchBadge
+    }
+
     private init() {
         self.setupEscapeKeyMonitors()
     }
@@ -168,14 +200,17 @@ final class NotchOverlayManager {
         // Start monitoring active app changes (updates icon in real-time)
         ActiveAppMonitor.shared.startMonitoring()
 
-        // Route to bottom overlay if user preference is set
-        if SettingsStore.shared.overlayPosition == .bottom {
-            self.showBottomOverlay(audioLevelPublisher: audioLevelPublisher, mode: mode)
-            return
-        }
+        let presentation = Self.liveOverlayPresentation(
+            overlayPosition: SettingsStore.shared.overlayPosition,
+            activeScreenHasHardwareNotch: self.activeScreenHasHardwareNotch()
+        )
 
-        // Otherwise show notch overlay (original behavior)
-        self.showNotchOverlay(audioLevelPublisher: audioLevelPublisher, mode: mode)
+        switch presentation {
+        case .bottomOverlay:
+            self.showBottomOverlay(audioLevelPublisher: audioLevelPublisher, mode: mode)
+        case .notchOverlay:
+            self.showNotchOverlay(audioLevelPublisher: audioLevelPublisher, mode: mode)
+        }
     }
 
     /// Show bottom overlay (alternative to notch)
@@ -372,7 +407,12 @@ final class NotchOverlayManager {
         // Reset any existing badge state before deciding this completion's feedback mode.
         self.clearCommandCompletionBadgeState()
 
-        if success, self.shouldShowSystemSuccessNotification() {
+        let completionPresentation = Self.commandCompletionFeedbackPresentation(
+            overlayPosition: SettingsStore.shared.overlayPosition,
+            activeScreenHasHardwareNotch: self.activeScreenHasHardwareNotch()
+        )
+
+        if success, completionPresentation == .systemNotification {
             SystemNotificationService.shared.showCommandSuccessNotification()
             return
         }
@@ -439,9 +479,9 @@ final class NotchOverlayManager {
         NotchContentState.shared.clearCommandTurnBadge()
     }
 
-    private func shouldShowSystemSuccessNotification() -> Bool {
+    private func activeScreenHasHardwareNotch() -> Bool {
         guard let activeScreen = self.activeScreenForCompletionFeedback() else { return false }
-        return !self.screenHasHardwareNotch(activeScreen)
+        return self.screenHasHardwareNotch(activeScreen)
     }
 
     private func activeScreenForCompletionFeedback() -> NSScreen? {

@@ -1,12 +1,20 @@
 import Foundation
 import UserNotifications
 
-final class SystemNotificationService {
+final class SystemNotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = SystemNotificationService()
 
-    private let notificationCenter = UNUserNotificationCenter.current()
+    static var foregroundPresentationOptions: UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
 
-    private init() {}
+    private let notificationCenter: UNUserNotificationCenter
+
+    private override init() {
+        self.notificationCenter = UNUserNotificationCenter.current()
+        super.init()
+        self.notificationCenter.delegate = self
+    }
 
     func showCommandSuccessNotification() {
         Task { [weak self] in
@@ -63,5 +71,12 @@ final class SystemNotificationService {
         @unknown default:
             return false
         }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        Self.foregroundPresentationOptions
     }
 }
