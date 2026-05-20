@@ -304,6 +304,57 @@ final class AIEnhancementSettingsViewModel: ObservableObject {
         self.updateConnectionStatus(.success, for: providerID)
     }
 
+    func verifyFluidIntelligence(model: FluidRegisteredModel) async -> Bool {
+        let providerID = "fluid-1"
+        let key = self.providerKey(for: providerID)
+        guard !self.isTestingConnection else { return false }
+
+        self.isTestingConnection = true
+        self.updateConnectionStatus(.testing, for: providerID)
+        self.connectionErrorMessage = ""
+
+        defer {
+            self.isTestingConnection = false
+        }
+
+        guard FluidIntelligenceIntegrationService.isModelInstalled(model) else {
+            self.updateConnectionStatus(.failed, for: providerID)
+            self.connectionErrorMessage = "\(model.displayName) is not installed."
+            return false
+        }
+
+        do {
+            let status = try await FluidIntelligenceIntegrationService.shared.loadModel(model)
+            switch status.state {
+            case .ready:
+                var fingerprints = self.settings.verifiedProviderFingerprints
+                fingerprints[key] = self.fluidIntelligenceFingerprint(for: model.id)
+                self.settings.verifiedProviderFingerprints = fingerprints
+                self.selectedModelByProvider[key] = model.id
+                self.settings.selectedModelByProvider = self.selectedModelByProvider
+                self.updateConnectionStatus(.success, for: providerID)
+                self.connectionErrorMessage = ""
+                DebugLogger.shared.info(
+                    "Fluid Intelligence verification succeeded for \(model.id)",
+                    source: "AISettingsView"
+                )
+                return true
+            default:
+                self.updateConnectionStatus(.failed, for: providerID)
+                self.connectionErrorMessage = status.message ?? "\(model.displayName) did not report ready."
+                return false
+            }
+        } catch {
+            self.updateConnectionStatus(.failed, for: providerID)
+            self.connectionErrorMessage = self.fluidIntelligenceErrorMessage(for: error)
+            DebugLogger.shared.error(
+                "Fluid Intelligence verification failed for \(model.id): \(self.connectionErrorMessage)",
+                source: "AISettingsView"
+            )
+            return false
+        }
+    }
+
     func resetVerification(for providerID: String) {
         let key = self.providerKey(for: providerID)
         self.settings.verifiedProviderFingerprints.removeValue(forKey: key)
@@ -1116,6 +1167,19 @@ final class AIEnhancementSettingsViewModel: ObservableObject {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
+    private func fluidIntelligenceFingerprint(for modelID: String) -> String {
+        "fluid-intelligence|\(modelID)"
+    }
+
+    private func fluidIntelligenceErrorMessage(for error: Error) -> String {
+        if let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription
+        {
+            return description
+        }
+        return String(describing: error)
+    }
+
     private func storeVerificationFingerprint(for providerID: String, baseURL: String, apiKey: String) {
         guard let fingerprint = self.fingerprint(baseURL: baseURL, apiKey: apiKey) else { return }
         let key = self.providerKey(for: providerID)
@@ -1150,6 +1214,15 @@ final class AIEnhancementSettingsViewModel: ObservableObject {
             let key = self.providerKey(for: providerID)
             if providerID == "apple-intelligence" {
                 if self.settings.verifiedProviderFingerprints[key] == "apple-intelligence" {
+                    statuses[providerID] = .success
+                } else if statuses[providerID] == .success {
+                    statuses[providerID] = .unknown
+                }
+                continue
+            }
+            if providerID == "fluid-1" {
+                let selected = self.selectedModelByProvider[key] ?? FluidIntelligenceIntegrationService.configuredModelID
+                if self.settings.verifiedProviderFingerprints[key] == self.fluidIntelligenceFingerprint(for: selected) {
                     statuses[providerID] = .success
                 } else if statuses[providerID] == .success {
                     statuses[providerID] = .unknown

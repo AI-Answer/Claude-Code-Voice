@@ -425,7 +425,7 @@ extension AIEnhancementSettingsView {
         let status = self.providerStatus(for: item)
         let borderColor = isExpanded
             ? self.theme.palette.accent.opacity(0.5)
-            : (isFluidIntelligence ? self.theme.palette.accent.opacity(0.3) : self.theme.palette.cardBorder.opacity(0.3))
+            : self.theme.palette.cardBorder.opacity(0.3)
         let statusView = HStack(spacing: 5) {
             if !status.icon.isEmpty {
                 Image(systemName: status.icon)
@@ -447,21 +447,7 @@ extension AIEnhancementSettingsView {
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(isComingSoon ? self.theme.palette.accent : self.theme.palette.primaryText)
 
-                        if isFluidIntelligence {
-                            statusView
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule()
-                                        .fill(self.theme.palette.accent.opacity(0.12))
-                                        .overlay(
-                                            Capsule()
-                                                .stroke(self.theme.palette.accent.opacity(0.3), lineWidth: 1)
-                                        )
-                                )
-                        } else {
-                            statusView
-                        }
+                        statusView
                     }
 
                     Spacer()
@@ -509,25 +495,6 @@ extension AIEnhancementSettingsView {
     }
 
     private func providerStatus(for item: ProviderItem) -> (text: String, color: Color, icon: String) {
-        if item.id == "fluid-1" {
-            let model = self.selectedFluidIntelligenceModel
-            if self.fluidIntelligenceLoadState.isLoading(model.id) {
-                return ("Loading \(model.parameterCount)", self.theme.palette.accent, "arrow.triangle.2.circlepath")
-            }
-            if self.fluidIntelligenceLoadState.isLoaded(model.id) {
-                return ("\(model.parameterCount) loaded", Color.fluidGreen, "memorychip.fill")
-            }
-            if FluidIntelligenceIntegrationService.isModelInstalled(model) {
-                return ("\(model.parameterCount) ready", Color.fluidGreen, "checkmark.circle.fill")
-            }
-            if FluidIntelligenceIntegrationService.isLocalRuntimeConfigured {
-                return ("Local override ready", Color.fluidGreen, "checkmark.circle.fill")
-            }
-            if model.canDownload {
-                return ("Download available", self.theme.palette.accent, "arrow.down.circle.fill")
-            }
-            return ("Model not installed", .orange, "externaldrive.badge.questionmark")
-        }
         if item.id == "apple-intelligence-disabled" {
             return ("Unavailable", .secondary, "lock.slash")
         }
@@ -566,100 +533,179 @@ extension AIEnhancementSettingsView {
     private var fluidIntelligenceRuntimeSection: some View {
         let model = self.selectedFluidIntelligenceModel
         let status = self.fluidIntelligenceModelStatus(for: model)
+        let isInstalled = FluidIntelligenceIntegrationService.isModelInstalled(model)
+        let isLoading = self.fluidIntelligenceLoadState.isLoading(model.id)
+        let isLoaded = self.fluidIntelligenceLoadState.isLoaded(model.id)
+        let hasLoadFailure = self.fluidIntelligenceLoadState.failureMessage(for: model.id) != nil
+        let isTesting = self.viewModel.isTestingConnection && self.viewModel.selectedProviderID == "fluid-1"
+        let canVerify = isInstalled && !self.fluidIntelligenceSelectedModelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: status.icon)
-                    .font(.system(size: 13))
-                    .foregroundStyle(status.color)
-                Text(status.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
                 Text("Model")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .frame(width: 50, alignment: .leading)
 
-                Picker("Model", selection: self.$fluidIntelligenceSelectedModelID) {
-                    ForEach(FluidModelRegistry.models) { model in
-                        Text(model.displayName)
-                            .tag(model.id)
+                SearchableModelPicker(
+                    models: FluidModelRegistry.modelIDs(),
+                    selectedModel: self.fluidIntelligenceModelBinding,
+                    onRefresh: {
+                        await MainActor.run {
+                            self.refreshFluidIntelligenceProviderModels()
+                        }
+                    },
+                    isRefreshing: false,
+                    refreshEnabled: true,
+                    selectionEnabled: !isLoading && !isTesting,
+                    controlWidth: 180,
+                    controlHeight: 30
+                )
+
+                Button(action: { self.loadFluidIntelligenceModel(model) }) {
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .fixedSize()
+                    } else {
+                        Image(systemName: "memorychip")
+                            .font(.system(size: 12, weight: .semibold))
                     }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(maxWidth: 280, alignment: .leading)
-                .onChange(of: self.fluidIntelligenceSelectedModelID) { _, newValue in
-                    self.persistFluidIntelligenceModelSelection(newValue)
-                }
-
-                Text(model.detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: status.detailIcon)
-                    .font(.caption)
-                Text(status.detail)
-                    .font(.caption)
-                    .lineLimit(2)
-            }
-            .foregroundStyle(status.color)
-
-            HStack(spacing: 8) {
-                Button(action: { self.loadFluidIntelligenceModel(model) }) {
-                    Label(
-                        self.fluidIntelligenceLoadState.isLoading(model.id) ? "Loading" : "Load",
-                        systemImage: self.fluidIntelligenceLoadState.isLoading(model.id) ? "arrow.triangle.2.circlepath" : "memorychip"
-                    )
-                    .font(.system(size: 12, weight: .medium))
-                }
-                .buttonStyle(GlassButtonStyle(height: AISettingsLayout.controlHeight))
-                .disabled(
-                    !FluidIntelligenceIntegrationService.isModelInstalled(model) ||
-                        self.fluidIntelligenceLoadState.isLoading(model.id)
-                )
+                .buttonStyle(CompactButtonStyle(foreground: isLoaded ? Color.fluidGreen : nil))
+                .frame(width: 28, height: 28)
+                .disabled(!isInstalled || isLoading || isTesting)
+                .help("Load selected model")
 
                 Button(action: { self.unloadFluidIntelligenceModel() }) {
-                    Label("Unload", systemImage: "eject")
-                        .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "eject")
+                        .font(.system(size: 12, weight: .semibold))
                 }
-                .buttonStyle(GlassButtonStyle(height: AISettingsLayout.controlHeight))
-                .disabled(
-                    self.fluidIntelligenceLoadState.isLoading(model.id) ||
-                        !self.fluidIntelligenceLoadState.isLoaded(model.id)
-                )
+                .buttonStyle(CompactButtonStyle())
+                .frame(width: 28, height: 28)
+                .disabled(isLoading || isTesting || !isLoaded)
+                .help("Unload selected model")
 
                 Button(action: { self.revealFluidIntelligenceModelFolder() }) {
-                    Label("Models Folder", systemImage: "folder")
-                        .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "folder")
+                        .font(.system(size: 12, weight: .semibold))
                 }
-                .buttonStyle(GlassButtonStyle(height: AISettingsLayout.controlHeight))
+                .buttonStyle(CompactButtonStyle())
+                .frame(width: 28, height: 28)
+                .help("Open models folder")
 
-                if !FluidIntelligenceIntegrationService.isModelInstalled(model) {
+                if !isInstalled {
                     Button(action: {}) {
-                        Label("Download", systemImage: "arrow.down.circle")
-                            .font(.system(size: 12, weight: .medium))
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 12, weight: .semibold))
                     }
-                    .buttonStyle(GlassButtonStyle(height: AISettingsLayout.controlHeight))
+                    .buttonStyle(CompactButtonStyle())
+                    .frame(width: 28, height: 28)
                     .disabled(true)
                     .help(model.canDownload ? "Download this model" : "Download URL is not configured yet")
                 }
             }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(self.theme.palette.accent.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(self.theme.palette.accent.opacity(0.25), lineWidth: 1)
+
+            if isLoading || isLoaded || hasLoadFailure || !isInstalled {
+                HStack(spacing: 6) {
+                    Image(systemName: status.detailIcon)
+                        .font(.caption)
+                    Text(status.detail)
+                        .font(.caption)
+                        .lineLimit(2)
+                }
+                .foregroundStyle(status.color)
+            }
+
+            if self.viewModel.connectionStatus(for: "fluid-1") == .failed,
+               !self.viewModel.connectionErrorMessage.isEmpty
+            {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                    Text(self.viewModel.connectionErrorMessage)
+                        .font(.caption)
+                }
+                .foregroundStyle(.red)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.red.opacity(0.1))
                 )
+            }
+
+            if canVerify {
+                Button(action: { self.verifyFluidIntelligenceConnection(model) }) {
+                    HStack(spacing: 6) {
+                        if isTesting {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .fixedSize()
+                        } else {
+                            Image(systemName: "checkmark.shield")
+                                .font(.system(size: 12))
+                        }
+                        Text(isTesting ? "Verifying..." : "Verify Connection")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                }
+                .buttonStyle(AccentButtonStyle(compact: true))
+                .disabled(isTesting || isLoading)
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                    Text("Install the selected model to enable verification")
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var fluidIntelligenceModelBinding: Binding<String> {
+        Binding(
+            get: { self.fluidIntelligenceSelectedModelID },
+            set: { self.persistFluidIntelligenceModelSelection($0) }
         )
+    }
+
+    private func refreshFluidIntelligenceProviderModels() {
+        let providerKey = self.viewModel.providerKey(for: "fluid-1")
+        let models = FluidModelRegistry.modelIDs()
+        let selected = FluidModelRegistry.model(id: self.fluidIntelligenceSelectedModelID)?.id ?? FluidModelRegistry.defaultModel.id
+
+        self.fluidIntelligenceSelectedModelID = selected
+        self.viewModel.availableModelsByProvider[providerKey] = models
+        self.viewModel.selectedModelByProvider[providerKey] = selected
+        self.viewModel.settings.availableModelsByProvider = self.viewModel.availableModelsByProvider
+        self.viewModel.settings.selectedModelByProvider = self.viewModel.selectedModelByProvider
+
+        if self.viewModel.selectedProviderID == "fluid-1" {
+            self.viewModel.availableModels = models
+            self.viewModel.selectedModel = selected
+        }
+
+        self.refreshFluidIntelligenceLoadState()
+        self.viewModel.refreshProviderItems()
+    }
+
+    private func verifyFluidIntelligenceConnection(_ model: FluidRegisteredModel) {
+        self.fluidIntelligenceLoadState = .loading(modelID: model.id)
+        Task { @MainActor in
+            let verified = await self.viewModel.verifyFluidIntelligence(model: model)
+            guard self.fluidIntelligenceSelectedModelID == model.id else { return }
+            if verified {
+                self.fluidIntelligenceLoadState = .loaded(modelID: model.id)
+            } else {
+                let message = self.viewModel.connectionErrorMessage.isEmpty
+                    ? "Model verification failed."
+                    : self.viewModel.connectionErrorMessage
+                self.fluidIntelligenceLoadState = .failed(modelID: model.id, message: message)
+            }
+            self.viewModel.refreshProviderItems()
+        }
     }
 
     private var selectedFluidIntelligenceModel: FluidRegisteredModel {
@@ -830,6 +876,7 @@ extension AIEnhancementSettingsView {
             self.viewModel.availableModels = models
             self.viewModel.selectedModel = model.id
         }
+        self.viewModel.resetVerification(for: "fluid-1")
         self.viewModel.refreshProviderItems()
         self.loadFluidIntelligenceModel(model)
     }
