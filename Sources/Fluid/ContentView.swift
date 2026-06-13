@@ -2571,18 +2571,25 @@ struct ContentView: View {
             }
         }
 
-        // Pre-warm the local AI dictation runtime during recording so the first
-        // enhancement is a warm prefix-cache hit instead of paying model load +
-        // prompt prefill after the user stops speaking. Only when the private
-        // provider is the selected, configured dictation provider; best-effort.
-        if PrivateAIProviderPromptFormat.isAvailable(settings: SettingsStore.shared),
-           DictationAIPostProcessingGate.isConfigured()
-        {
-            Task {
-                DebugLogger.shared.debug("ContentView: AI dictation prewarm started", source: "ContentView")
-                await PrivateAIIntegrationService.shared.prewarmDictation()
-                DebugLogger.shared.debug("AI dictation prewarm complete", source: "ContentView")
-            }
+        self.prewarmPrivateAIDictationIfNeeded(for: .primary)
+    }
+
+    private func prewarmPrivateAIDictationIfNeeded(for slot: SettingsStore.DictationShortcutSlot) {
+        let appBundleID = self.recordingAppInfo?.bundleId
+        guard PrivateAIProviderPromptFormat.isAvailable(settings: SettingsStore.shared),
+              DictationAIPostProcessingGate.isConfigured(for: slot, appBundleID: appBundleID)
+        else { return }
+
+        Task {
+            DebugLogger.shared.debug(
+                "ContentView: AI dictation prewarm started slot=\(slot.rawValue)",
+                source: "ContentView"
+            )
+            await PrivateAIIntegrationService.shared.prewarmDictation()
+            DebugLogger.shared.debug(
+                "AI dictation prewarm complete slot=\(slot.rawValue)",
+                source: "ContentView"
+            )
         }
     }
 
@@ -3101,6 +3108,7 @@ extension ContentView {
         self.setActiveRecordingMode(mode)
         self.rewriteModeService.clearState()
         self.menuBarManager.setOverlayMode(.dictation)
+        self.prewarmPrivateAIDictationIfNeeded(for: slot)
 
         guard !self.asr.isRunning else { return }
         if SettingsStore.shared.enableTranscriptionSounds {
