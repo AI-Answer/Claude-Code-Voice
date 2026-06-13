@@ -1842,6 +1842,7 @@ struct ContentView: View {
         // The processing indicator will stay visible during this phase
         let transcribedText = await asr.stop()
         let audioSnapshot = self.asr.consumeLastCompletedAudioSnapshot()
+        TranscriptionSoundPlayer.shared.playStopSound()
         DebugLogger.shared.info(
             "Stop transcription result | chars=\(transcribedText.count) | empty=\(transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)",
             source: "ContentView"
@@ -2569,6 +2570,27 @@ struct ContentView: View {
                 DebugLogger.shared.error("Failed to pre-load model: \(error)", source: "ContentView")
             }
         }
+
+        self.prewarmPrivateAIDictationIfNeeded(for: .primary)
+    }
+
+    private func prewarmPrivateAIDictationIfNeeded(for slot: SettingsStore.DictationShortcutSlot) {
+        let appBundleID = self.recordingAppInfo?.bundleId
+        guard PrivateAIProviderPromptFormat.isAvailable(settings: SettingsStore.shared),
+              DictationAIPostProcessingGate.isConfigured(for: slot, appBundleID: appBundleID)
+        else { return }
+
+        Task {
+            DebugLogger.shared.debug(
+                "ContentView: AI dictation prewarm started slot=\(slot.rawValue)",
+                source: "ContentView"
+            )
+            await PrivateAIIntegrationService.shared.prewarmDictation()
+            DebugLogger.shared.debug(
+                "AI dictation prewarm complete slot=\(slot.rawValue)",
+                source: "ContentView"
+            )
+        }
     }
 
     /// Best-effort: re-activate the app that was focused when recording started.
@@ -3086,6 +3108,7 @@ extension ContentView {
         self.setActiveRecordingMode(mode)
         self.rewriteModeService.clearState()
         self.menuBarManager.setOverlayMode(.dictation)
+        self.prewarmPrivateAIDictationIfNeeded(for: slot)
 
         guard !self.asr.isRunning else { return }
         if SettingsStore.shared.enableTranscriptionSounds {

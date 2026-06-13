@@ -251,7 +251,7 @@ final class BottomOverlayWindowController {
         panel.animationBehavior = .none
 
         let contentView = BottomOverlayView()
-        let hostingView = NSHostingView(rootView: contentView)
+        let hostingView = BottomOverlayHostingView(rootView: contentView)
 
         // Let SwiftUI determine the size
         let fittingSize = hostingView.fittingSize
@@ -1741,6 +1741,18 @@ private struct PromptSelectorAnchorReader: NSViewRepresentable {
     }
 }
 
+private final class BottomOverlayHostingView: NSHostingView<BottomOverlayView> {
+    private let pillShadowPadding: CGFloat = 26
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if SettingsStore.shared.overlaySize == .pill {
+            let visibleOverlayBounds = self.bounds.insetBy(dx: self.pillShadowPadding, dy: self.pillShadowPadding)
+            guard visibleOverlayBounds.contains(point) else { return nil }
+        }
+        return super.hitTest(point)
+    }
+}
+
 private struct DynamicPreviewHeightPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
 
@@ -2784,7 +2796,7 @@ struct BottomOverlayView: View {
 
                     if self.isPillSize {
                         // Glossy border: a bright highlight that slowly rotates around the edge.
-                        TimelineView(.animation) { timeline in
+                        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                             let seconds = timeline.date.timeIntervalSinceReferenceDate
                             let angle = (seconds.truncatingRemainder(dividingBy: 6.0) / 6.0) * 360.0
                             RoundedRectangle(cornerRadius: self.layout.cornerRadius)
