@@ -534,6 +534,46 @@ final class DictationE2ETests: XCTestCase {
         )
     }
 
+    func testAIEnhancementExposesPrimaryAndSecondaryPromptActivationControls() throws {
+        let advancedSettingsSource = try Self.projectRoot()
+            .appendingPathComponent("Sources/Fluid/UI/AISettingsView+AdvancedSettings.swift")
+        let advancedSettings = try String(contentsOf: advancedSettingsSource, encoding: .utf8)
+
+        XCTAssertTrue(
+            advancedSettings.contains("self.dictationShortcutActivationRow"),
+            "Advanced Prompts must place the primary/secondary on-off controls above prompt assignment cards."
+        )
+        XCTAssertTrue(
+            advancedSettings.contains("self.dictationShortcutActivationCard(slot: .primary"),
+            "Advanced Prompts must expose a primary dictation on-off control."
+        )
+        XCTAssertTrue(
+            advancedSettings.contains("self.dictationShortcutActivationCard(slot: .secondary"),
+            "Advanced Prompts must expose a secondary dictation on-off control."
+        )
+        XCTAssertTrue(
+            advancedSettings.contains("if self.viewModel.isSecondaryDictationPromptActive()"),
+            "Secondary prompt assignment UI must render only when secondary is actually active."
+        )
+
+        let viewModelSource = try Self.projectRoot()
+            .appendingPathComponent("Sources/Fluid/UI/AISettings/AIEnhancementSettingsViewModel.swift")
+        let viewModel = try String(contentsOf: viewModelSource, encoding: .utf8)
+
+        XCTAssertTrue(
+            viewModel.contains("func setDictationPromptActive(_ isActive: Bool, for slot: SettingsStore.DictationShortcutSlot)"),
+            "The view model must own primary/secondary prompt activation behavior instead of burying persistence in the view."
+        )
+        XCTAssertTrue(
+            viewModel.contains("self.settings.promptModeShortcutEnabled = isActive"),
+            "Secondary activation must keep the secondary hotkey registration in sync."
+        )
+        XCTAssertTrue(
+            viewModel.contains("NotificationCenter.default.post(name: .dictationPromptShortcutsChanged"),
+            "Changing secondary activation from AI Enhancement must refresh registered shortcut state."
+        )
+    }
+
     private static func modelDirectoryForRun() -> URL {
         // Use a stable path on CI so GitHub Actions cache can speed up runs.
         if ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true" ||

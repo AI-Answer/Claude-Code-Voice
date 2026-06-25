@@ -1900,12 +1900,43 @@ final class AIEnhancementSettingsViewModel: ObservableObject {
         self.settings.dictationPromptSelection(for: slot)
     }
 
+    func isDictationPromptActive(for slot: SettingsStore.DictationShortcutSlot) -> Bool {
+        if slot == .secondary, !self.settings.promptModeShortcutEnabled { return false }
+        return self.settings.dictationPromptSelection(for: slot) != .off
+    }
+
+    func isSecondaryDictationPromptActive() -> Bool {
+        self.isDictationPromptActive(for: .secondary)
+    }
+
     func isDictationPromptSelection(
         _ selection: SettingsStore.DictationPromptSelection,
         for slot: SettingsStore.DictationShortcutSlot
     ) -> Bool {
         if slot == .secondary, !self.settings.promptModeShortcutEnabled { return false }
         return self.settings.dictationPromptSelection(for: slot) == selection
+    }
+
+    func setDictationPromptActive(_ isActive: Bool, for slot: SettingsStore.DictationShortcutSlot) {
+        let selection = isActive ? self.defaultActiveDictationPromptSelection() : .off
+
+        if slot == .secondary {
+            self.settings.promptModeShortcutEnabled = isActive
+        }
+
+        if isActive {
+            if self.settings.dictationPromptSelection(for: slot) == .off {
+                self.settings.setDictationPromptSelection(selection, for: slot)
+            }
+        } else {
+            self.settings.setDictationPromptSelection(.off, for: slot)
+        }
+
+        self.refreshPromptSelectionState()
+
+        if slot == .secondary {
+            NotificationCenter.default.post(name: .dictationPromptShortcutsChanged, object: nil)
+        }
     }
 
     func setDictationPromptSelection(
@@ -1922,6 +1953,7 @@ final class AIEnhancementSettingsViewModel: ObservableObject {
         self.settings.promptModeShortcutEnabled = true
         self.settings.setDictationPromptSelection(selection, for: .secondary)
         self.refreshPromptSelectionState()
+        NotificationCenter.default.post(name: .dictationPromptShortcutsChanged, object: nil)
     }
 
     func secondaryDictationShortcutDisplay() -> String {
@@ -1986,6 +2018,10 @@ final class AIEnhancementSettingsViewModel: ObservableObject {
         self.selectedEditPromptID = self.settings.selectedEditPromptID
         self.isDictationPromptOff = self.settings.isDictationPromptOff
         self.isEditPromptOff = self.settings.isEditPromptOff
+    }
+
+    private func defaultActiveDictationPromptSelection() -> SettingsStore.DictationPromptSelection {
+        self.isPrivateAIPromptAvailable() ? .privateAI : .default
     }
 
     private func resolveBindingTargetApp() -> (name: String, bundleID: String)? {

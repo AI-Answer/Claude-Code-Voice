@@ -205,6 +205,88 @@ extension AIEnhancementSettingsView {
         .animation(.easeOut(duration: 0.1), value: isHovering)
     }
 
+    private var dictationShortcutActivationRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                self.dictationShortcutActivationCard(slot: .primary)
+                self.dictationShortcutActivationCard(slot: .secondary)
+            }
+
+            VStack(spacing: 10) {
+                self.dictationShortcutActivationCard(slot: .primary)
+                self.dictationShortcutActivationCard(slot: .secondary)
+            }
+        }
+    }
+
+    private func dictationShortcutActivationCard(slot: SettingsStore.DictationShortcutSlot) -> some View {
+        let isActive = self.viewModel.isDictationPromptActive(for: slot)
+        let tone = Color.fluidGreen
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let title = slot == .primary ? "Primary" : "Secondary"
+        let subtitle = slot == .primary
+            ? "Main dictation shortcut"
+            : "Prompt-mode shortcut"
+        let systemImage = slot == .primary ? "mic.fill" : "sparkles"
+
+        return HStack(alignment: .center, spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(self.theme.palette.contentBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(isActive ? tone.opacity(0.42) : self.theme.palette.cardBorder.opacity(0.42), lineWidth: 1)
+                    )
+
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isActive ? tone : self.theme.palette.secondaryText)
+            }
+            .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 7) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(self.theme.palette.primaryText)
+                    Text(isActive ? "On" : "Off")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(isActive ? tone : self.theme.palette.tertiaryText)
+                }
+
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(self.theme.palette.secondaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 10)
+
+            Toggle("", isOn: self.dictationShortcutActivationBinding(for: slot))
+                .toggleStyle(.switch)
+                .tint(self.theme.palette.accent)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .background(
+            shape
+                .fill(self.theme.palette.cardBackground.opacity(0.7))
+                .overlay(
+                    shape.stroke(isActive ? tone.opacity(0.34) : self.theme.palette.cardBorder.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .help(slot == .primary ? "Enable AI enhancement for the main dictation shortcut" : "Enable the secondary prompt-mode shortcut")
+    }
+
+    private func dictationShortcutActivationBinding(for slot: SettingsStore.DictationShortcutSlot) -> Binding<Bool> {
+        Binding(
+            get: { self.viewModel.isDictationPromptActive(for: slot) },
+            set: { self.viewModel.setDictationPromptActive($0, for: slot) }
+        )
+    }
+
     private func promptCardIcon(
         title: String,
         mode: SettingsStore.PromptMode,
@@ -944,6 +1026,14 @@ extension AIEnhancementSettingsView {
         let isSelectedAppsOnly = !isPrivateAI && self.viewModel.promptRoutingScope(for: mode) == .selectedAppsOnly
 
         VStack(alignment: .leading, spacing: 10) {
+            if mode.normalized == .dictate {
+                self.dictationShortcutActivationRow
+
+                if self.viewModel.isSecondaryDictationPromptActive() {
+                    self.secondaryDictationPromptRow
+                }
+            }
+
             VStack(alignment: .leading, spacing: 10) {
                 if isPrivateAI {
                     let privateAISelection = SettingsStore.DictationPromptSelection.privateAI
@@ -1014,6 +1104,95 @@ extension AIEnhancementSettingsView {
             }
         }
         .padding(.top, 2)
+    }
+
+    private var secondaryDictationPromptRow: some View {
+        let profiles = self.viewModel.dictationPromptProfiles
+            .filter { $0.mode.normalized == .dictate }
+        let privateAIAvailable = self.viewModel.isPrivateAIPromptAvailable()
+        let displayName = self.settings.dictationPromptDisplayName(for: .secondary, appBundleID: nil)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+
+        return HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(self.theme.palette.contentBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.fluidGreen.opacity(0.42), lineWidth: 1)
+                    )
+
+                Image(systemName: "keyboard")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.fluidGreen)
+            }
+            .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text("Secondary Prompt")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(self.theme.palette.primaryText)
+
+                    self.promptStatusBadge("On", systemImage: "sparkles", tone: Color.fluidGreen, isProminent: true)
+                }
+
+                Text("Runs from \(self.viewModel.secondaryDictationShortcutDisplay()).")
+                    .font(.caption2)
+                    .foregroundStyle(self.theme.palette.secondaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 10)
+
+            Menu {
+                if privateAIAvailable {
+                    Button(PrivateAIProviderFeature.displayName) {
+                        self.viewModel.setSecondaryDictationPromptSelection(.privateAI)
+                    }
+                } else {
+                    Button("Built-in Default") {
+                        self.viewModel.setSecondaryDictationPromptSelection(.default)
+                    }
+
+                    if !profiles.isEmpty {
+                        Divider()
+
+                        ForEach(profiles) { profile in
+                            Button(profile.name.isEmpty ? "Untitled Prompt" : profile.name) {
+                                self.viewModel.setSecondaryDictationPromptSelection(.profile(profile.id))
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(displayName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(self.theme.palette.primaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 4)
+                    FluidPickerDisclosureIcon(backgroundOpacity: 0.6)
+                }
+                .searchablePickerControlChrome(
+                    width: 190,
+                    height: AISettingsLayout.controlHeight,
+                    usesMaterial: false,
+                    showsShadow: false
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .frame(minHeight: 66)
+        .background(
+            shape
+                .fill(self.theme.palette.cardBackground.opacity(0.7))
+                .overlay(shape.stroke(Color.fluidGreen.opacity(0.28), lineWidth: 1))
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private var privateAIOnlyNotice: some View {

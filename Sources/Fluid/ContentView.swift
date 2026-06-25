@@ -283,6 +283,8 @@ struct ContentView: View {
                 self.handlePendingAppNavigation()
             }
             .onReceive(NotificationCenter.default.publisher(for: .dictationPromptShortcutsChanged)) { _ in
+                self.isPromptModeShortcutEnabled = SettingsStore.shared.promptModeShortcutEnabled
+                self.hotkeyManager?.updatePromptModeShortcutEnabled(SettingsStore.shared.promptModeShortcutEnabled)
                 self.hotkeyManager?.updatePromptShortcutAssignments(SettingsStore.shared.dictationPromptShortcutAssignments())
             }
             .onReceive(NotificationCenter.default.publisher(for: .settingsBackupDidRestore)) { _ in
