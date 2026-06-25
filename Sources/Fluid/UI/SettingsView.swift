@@ -34,11 +34,13 @@ struct SettingsView: View {
     @Binding var outputDevices: [AudioDevice.Device]
     @Binding var accessibilityEnabled: Bool
     @Binding var hotkeyShortcut: HotkeyShortcut
+    @Binding var promptModeShortcut: HotkeyShortcut
     @Binding var activeShortcutRecordingTarget: ShortcutRecordingTarget?
     @Binding var shortcutRecordingMessage: String?
     @Binding var commandModeShortcut: HotkeyShortcut
     @Binding var rewriteShortcut: HotkeyShortcut
     @Binding var cancelRecordingShortcut: HotkeyShortcut
+    @Binding var promptModeShortcutEnabled: Bool
     @Binding var commandModeShortcutEnabled: Bool
     @Binding var rewriteShortcutEnabled: Bool
     @Binding var hotkeyManagerInitialized: Bool
@@ -144,19 +146,26 @@ struct SettingsView: View {
                 }
             },
             set: { newValue in
+                let selection: SettingsStore.DictationPromptSelection
                 switch newValue {
                 case "__OFF__":
-                    self.settings.setDictationPromptSelection(.off, for: slot)
+                    selection = .off
                 case "__DEFAULT__":
                     guard !PrivateAIProviderPromptFormat.isAvailable(settings: self.settings) else { return }
-                    self.settings.setDictationPromptSelection(.default, for: slot)
+                    selection = .default
                 case PrivateAIProviderPromptFormat.promptSelectionID:
                     guard PrivateAIProviderPromptFormat.isAvailable(settings: self.settings) else { return }
-                    self.settings.setDictationPromptSelection(.privateAI, for: slot)
+                    selection = .privateAI
                 default:
                     guard !PrivateAIProviderPromptFormat.isAvailable(settings: self.settings) else { return }
-                    self.settings.setDictationPromptSelection(.profile(newValue), for: slot)
+                    selection = .profile(newValue)
                 }
+
+                if slot == .secondary, selection != .off {
+                    self.promptModeShortcutEnabled = true
+                }
+
+                self.settings.setDictationPromptSelection(selection, for: slot)
             }
         )
     }
@@ -679,6 +688,27 @@ struct SettingsView: View {
                                         }
                                     )
                                     self.dictationPromptPicker(for: .primary)
+                                    Divider().opacity(0.2).padding(.vertical, 4)
+
+                                    self.shortcutRow(
+                                        content: .init(
+                                            icon: "sparkles",
+                                            iconColor: .secondary,
+                                            title: "Secondary Dictation Shortcut",
+                                            description: "Dictate with a dedicated prompt profile"
+                                        ),
+                                        shortcut: self.promptModeShortcut,
+                                        isRecording: self.isRecording(.secondaryDictation),
+                                        isAnyRecordingActive: self.isRecordingAnyShortcut,
+                                        recordingMessage: self.isRecording(.secondaryDictation) ? self.shortcutRecordingMessage : nil,
+                                        isEnabled: self.$promptModeShortcutEnabled,
+                                        onChangePressed: {
+                                            DebugLogger.shared.debug("Starting to record new secondary dictation shortcut", source: "SettingsView")
+                                            self.shortcutRecordingMessage = nil
+                                            self.activeShortcutRecordingTarget = .secondaryDictation
+                                        }
+                                    )
+                                    self.dictationPromptPicker(for: .secondary)
                                     Divider().opacity(0.2).padding(.vertical, 4)
 
                                     self.shortcutRow(

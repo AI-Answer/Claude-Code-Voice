@@ -511,6 +511,29 @@ final class DictationE2ETests: XCTestCase {
         XCTAssertFalse(SimpleUpdater.isRollbackVersion(nil, differentFrom: "1.5.11-beta.3"))
     }
 
+    func testPreferencesExposeSecondaryDictationPromptShortcutControl() throws {
+        let settingsViewSource = try Self.projectRoot()
+            .appendingPathComponent("Sources/Fluid/UI/SettingsView.swift")
+        let source = try String(contentsOf: settingsViewSource, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("title: \"Secondary Dictation Shortcut\""),
+            "Preferences must show the secondary prompt-mode dictation shortcut row."
+        )
+        XCTAssertTrue(
+            source.contains("self.activeShortcutRecordingTarget = .secondaryDictation"),
+            "The secondary shortcut row must start recording the secondary shortcut target."
+        )
+        XCTAssertTrue(
+            source.contains("isEnabled: self.$promptModeShortcutEnabled"),
+            "The secondary shortcut row must be able to re-enable prompt-mode shortcut registration."
+        )
+        XCTAssertTrue(
+            source.contains("self.dictationPromptPicker(for: .secondary)"),
+            "Preferences must expose the secondary shortcut prompt picker after the row is restored."
+        )
+    }
+
     private static func modelDirectoryForRun() -> URL {
         // Use a stable path on CI so GitHub Actions cache can speed up runs.
         if ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true" ||
@@ -541,6 +564,13 @@ final class DictationE2ETests: XCTestCase {
             .joined(separator: " ")
 
         return collapsed
+    }
+
+    private static func projectRoot() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
     }
 
     private func withRestoredDefaults(keys: [String], run: () -> Void) {
