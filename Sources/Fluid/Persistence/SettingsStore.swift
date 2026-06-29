@@ -20,7 +20,7 @@ final class SettingsStore: ObservableObject {
     private(set) var launchAtStartupEnabled = false
     private(set) var launchAtStartupErrorMessage: String?
     private(set) var launchAtStartupStatusMessage =
-        "FluidVoice reflects the actual macOS login item state. Unsigned or development builds may fail to enable this."
+        "Claude Code Voice reflects the actual macOS login item state. Unsigned or development builds may fail to enable this."
 
     private init() {
         self.migrateTranscriptionStartSoundIfNeeded()
@@ -1255,7 +1255,7 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    /// Show the main window when macOS launches FluidVoice at login (default: ON, matching
+    /// Show the main window when macOS launches Claude Code Voice at login (default: ON, matching
     /// current behavior). When off, login launches boot silently in the menu bar. Manual
     /// launches always show the window. Default-true semantics so existing installs keep
     /// their current behavior.
@@ -1392,7 +1392,7 @@ final class SettingsStore: ObservableObject {
     ///
     /// The per-prompt shortcut system means the global default provider is no longer the
     /// authoritative routing source — each shortcut can bind to its own provider/model, or be off.
-    /// The only time we set a provider is during onboarding (Fluid Intelligence flow); after that
+    /// The only time we set a provider is during onboarding (Claude Code Intelligence flow); after that
     /// the selection is sticky across restarts and updates. Default is off (empty).
     func normalizeProviderSelectionForCurrentVerificationState() {
         // Intentionally empty. Selection is sticky.
@@ -1601,7 +1601,7 @@ final class SettingsStore: ObservableObject {
         set { self.defaults.set(newValue, forKey: Keys.preferredOutputDeviceUID) }
     }
 
-    /// When enabled, changing audio devices in FluidVoice will also update macOS system audio settings.
+    /// When enabled, changing audio devices in Claude Code Voice will also update macOS system audio settings.
     /// ALWAYS TRUE: Independent mode removed due to CoreAudio aggregate device limitations (OSStatus -10851)
     var syncAudioDevicesWithSystem: Bool {
         get {
@@ -3522,7 +3522,7 @@ final class SettingsStore: ObservableObject {
     // MARK: - Media Playback Control
 
     /// When enabled, automatically pauses system media playback when transcription starts.
-    /// Only resumes if FluidVoice was the one that paused it.
+    /// Only resumes if Claude Code Voice was the one that paused it.
     var pauseMediaDuringTranscription: Bool {
         get { self.defaults.object(forKey: Keys.pauseMediaDuringTranscription) as? Bool ?? false }
         set {
@@ -3534,7 +3534,7 @@ final class SettingsStore: ObservableObject {
     // MARK: - Custom Dictionary
 
     /// A custom dictionary entry that maps multiple misheard/alternate spellings to a correct replacement.
-    /// For example: ["fluid voice", "fluid boys"] -> "FluidVoice"
+    /// For example: ["fluid voice", "fluid boys"] -> "Claude Code Voice"
     struct CustomDictionaryEntry: Codable, Identifiable, Hashable {
         let id: UUID
         /// Words/phrases to look for (case-insensitive matching)
@@ -3990,11 +3990,11 @@ final class SettingsStore: ObservableObject {
             }
         }
 
-        /// Optional badge text for the card (e.g., "FluidVoice Pick")
+        /// Optional badge text for the card (e.g., "Claude Code Voice Pick")
         var badgeText: String? {
             switch self {
-            case .parakeetTDT: return "FluidVoice Pick"
-            case .parakeetTDTv2: return "FluidVoice Pick"
+            case .parakeetTDT: return "Claude Code Voice Pick"
+            case .parakeetTDTv2: return "Claude Code Voice Pick"
             case .parakeetRealtime: return "Beta"
             case .qwen3Asr: return "Beta"
             case .cohereTranscribeSixBit: return "New"

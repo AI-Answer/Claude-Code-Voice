@@ -158,7 +158,7 @@ struct OnboardingAIEnhancementStepView: View {
             return "Download"
         }
         if self.isPrivateAIAvailable, !self.shouldShowTryout {
-            return "Test FluidVoice"
+            return "Test Claude Code Voice"
         }
         if self.isPrivateAIAvailable, self.shouldShowTryout {
             return "Using"
@@ -323,13 +323,13 @@ struct OnboardingAIEnhancementStepView: View {
 
     private var setupSubtitleText: String {
         if self.hasPrivateAIProvider {
-            return "FluidVoice can polish raw dictation locally with an optional built-in AI engine."
+            return "Claude Code Voice can polish raw dictation locally with an optional built-in AI engine."
         }
         return "Optional: connect your own AI provider to polish dictation."
     }
 
     private var setupQuestionText: String {
-        self.hasPrivateAIProvider ? "Want FluidVoice to polish your dictation?" : "Want AI polishing?"
+        self.hasPrivateAIProvider ? "Want Claude Code Voice to polish your dictation?" : "Want AI polishing?"
     }
 
     private var setupFootnoteText: String {

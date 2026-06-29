@@ -85,7 +85,7 @@ final class ParakeetVocabularyStore {
     }
 
     private let fileName = "parakeet_custom_vocabulary.json"
-    private let appSupportFolder = "FluidVoice"
+    private let appSupportFolder = "Claude Code Voice"
 
     private init() {}
 
@@ -319,7 +319,7 @@ final class ParakeetVocabularyStore {
           "minTermLength": 3,
           "terms": [
             {
-              "text": "FluidVoice",
+              "text": "Claude Code Voice",
               "aliases": ["fluid voice", "fluid boys"],
               "weight": 10.0
             }

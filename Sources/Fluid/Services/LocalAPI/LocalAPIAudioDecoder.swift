@@ -28,7 +28,7 @@ enum LocalAPIAudioDecoder {
             ? "wav"
             : suggestedExtension.trimmingCharacters(in: CharacterSet(charactersIn: ". \n\t"))
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("fluidvoice-api-\(UUID().uuidString)")
+            .appendingPathComponent("claudecodevoice-api-\(UUID().uuidString)")
             .appendingPathExtension(ext)
         try data.write(to: url, options: .atomic)
         defer { try? FileManager.default.removeItem(at: url) }

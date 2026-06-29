@@ -44,7 +44,7 @@ enum DictationAudioHistoryError: LocalizedError {
 final nonisolated class DictationAudioHistoryStore: @unchecked Sendable {
     static let shared = DictationAudioHistoryStore()
 
-    private let appSupportFolder = "FluidVoice"
+    private let appSupportFolder = "Claude Code Voice"
     private let audioFolder = "DictationAudioHistory"
     private let fileManager = FileManager.default
 
@@ -172,11 +172,11 @@ final nonisolated class DictationAudioHistoryStore: @unchecked Sendable {
     }
 
     func suggestedAudioExportFilename(for date: Date = Date()) -> String {
-        "FluidVoice_Audio_\(Self.fileTimestampFormatter.string(from: date)).zip"
+        "Claude Code Voice_Audio_\(Self.fileTimestampFormatter.string(from: date)).zip"
     }
 
     func suggestedPairExportFilename(for entry: TranscriptionHistoryEntry) -> String {
-        "FluidVoice_Pair_\(Self.fileTimestampFormatter.string(from: entry.timestamp))_\(entry.id.uuidString.prefix(8)).zip"
+        "Claude Code Voice_Pair_\(Self.fileTimestampFormatter.string(from: entry.timestamp))_\(entry.id.uuidString.prefix(8)).zip"
     }
 
     static func formattedGigabytes(_ bytes: Int64) -> String {
@@ -196,7 +196,7 @@ final nonisolated class DictationAudioHistoryStore: @unchecked Sendable {
         guard !exportEntries.isEmpty else { throw DictationAudioHistoryError.noAudioEntries }
 
         let staging = self.fileManager.temporaryDirectory
-            .appendingPathComponent("fluidvoice-audio-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("claudecodevoice-audio-\(UUID().uuidString)", isDirectory: true)
         let audioDirectory = staging.appendingPathComponent("audio", isDirectory: true)
 
         try self.fileManager.createDirectory(at: audioDirectory, withIntermediateDirectories: true)

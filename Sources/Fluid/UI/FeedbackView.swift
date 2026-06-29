@@ -35,7 +35,7 @@ struct FeedbackView: View {
                         VStack(alignment: .leading) {
                             Text("Send Feedback")
                                 .font(.system(size: 28, weight: .bold))
-                            Text("Help us improve FluidVoice")
+                            Text("Help us improve Claude Code Voice")
                                 .font(.system(size: 16))
                                 .foregroundStyle(.secondary)
                         }
@@ -56,7 +56,7 @@ struct FeedbackView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundStyle(self.theme.palette.primaryText)
 
-                                Text("Your feedback helps us make FluidVoice even better")
+                                Text("Your feedback helps us make Claude Code Voice even better")
                                     .font(.system(size: 14))
                                     .foregroundStyle(self.theme.palette.secondaryText)
                             }
@@ -71,11 +71,11 @@ struct FeedbackView: View {
                                 .foregroundStyle(.yellow)
 
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Loving FluidVoice?")
+                                Text("Loving Claude Code Voice?")
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundStyle(self.theme.palette.primaryText)
 
-                                Text("Give us a star on GitHub, or support continued free development to help make local dictation even better.")
+                                Text("Give us a star on GitHub, or file an issue to help make Claude Code dictation even better.")
                                     .font(.system(size: 13))
                                     .foregroundStyle(self.theme.palette.secondaryText)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -84,7 +84,7 @@ struct FeedbackView: View {
                             Spacer()
 
                             HStack(spacing: 10) {
-                                if let githubURL = URL(string: "https://github.com/altic-dev/Fluid-oss") {
+                                if let githubURL = URL(string: "https://github.com/AI-Answer/Claude-Code-Voice") {
                                     Link(destination: githubURL) {
                                         HStack(spacing: 8) {
                                             Image(systemName: "star.fill")
@@ -99,11 +99,11 @@ struct FeedbackView: View {
                                     .buttonHoverEffect()
                                 }
 
-                                if let sponsorURL = URL(string: "https://github.com/sponsors/altic-dev") {
-                                    Link(destination: sponsorURL) {
+                                if let issuesURL = URL(string: "https://github.com/AI-Answer/Claude-Code-Voice/issues") {
+                                    Link(destination: issuesURL) {
                                         HStack(spacing: 8) {
-                                            Image(systemName: "heart.fill")
-                                            Text("Support FluidVoice")
+                                            Image(systemName: "ladybug.fill")
+                                            Text("Open Issues")
                                                 .fontWeight(.semibold)
                                         }
                                         .font(.system(size: 14))
@@ -112,7 +112,7 @@ struct FeedbackView: View {
                                     }
                                     .fluidButton(.glass, size: .medium)
                                     .buttonHoverEffect()
-                                    .help("Sponsor Altic on GitHub")
+                                    .help("Open the AI Answer issue tracker")
                                 }
                             }
                         }
@@ -179,7 +179,7 @@ struct FeedbackView: View {
                                         } else {
                                             Image(systemName: "paperplane.fill")
                                         }
-                                        Text(self.isSendingFeedback ? "Sending..." : "Send Feedback")
+                                        Text(self.isSendingFeedback ? "Opening..." : "Open GitHub Issue")
                                             .fontWeight(.semibold)
                                     }
                                     .padding(.horizontal, 20)
@@ -202,12 +202,12 @@ struct FeedbackView: View {
         .onAppear {
             self.appear = true
         }
-        .alert("Feedback Sent", isPresented: self.$showFeedbackConfirmation) {
+        .alert("Feedback Draft Opened", isPresented: self.$showFeedbackConfirmation) {
             Button("OK") {}
         } message: {
-            Text("Thank you for helping us improve FluidVoice.")
+            Text("We opened a GitHub issue draft with your feedback. Review it before publishing, especially if logs are included.")
         }
-        .alert("Feedback Failed", isPresented: self.$showFeedbackError) {
+        .alert("Feedback Draft Failed", isPresented: self.$showFeedbackError) {
             Button("Try Again") {
                 Task {
                     await self.sendFeedback()
@@ -245,7 +245,7 @@ struct FeedbackView: View {
                 self.includeDebugLogs = false
             } else {
                 // Show error to user - inputs are preserved for retry
-                self.feedbackErrorMessage = "We couldn't send your feedback. Please check your internet connection and try again."
+                self.feedbackErrorMessage = "We couldn't open a GitHub issue draft. Please copy your feedback and file it at https://github.com/AI-Answer/Claude-Code-Voice/issues."
                 self.showFeedbackError = true
             }
         }
@@ -283,39 +283,29 @@ struct FeedbackView: View {
     }
 
     private func submitFeedback(data: [String: Any]) async -> Bool {
-        guard let url = URL(string: "https://altic.dev/api/fluid/feedback") else {
-            DebugLogger.shared.error("Invalid feedback API URL", source: "FeedbackView")
+        let email = (data["email_id"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let feedback = (data["feedback"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var body = feedback
+        if !email.isEmpty {
+            body += "\n\nReporter email: \(email)"
+        }
+
+        var components = URLComponents(string: "https://github.com/AI-Answer/Claude-Code-Voice/issues/new")
+        components?.queryItems = [
+            URLQueryItem(name: "title", value: "Feedback: Claude Code Voice"),
+            URLQueryItem(name: "body", value: body),
+        ]
+
+        guard let url = components?.url else {
+            DebugLogger.shared.error("Invalid GitHub issue URL", source: "FeedbackView")
             return false
         }
 
-        do {
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONSerialization.data(withJSONObject: data)
-
-            let (_, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                let success = (200...299).contains(httpResponse.statusCode)
-                if success {
-                    DebugLogger.shared.info("Feedback submitted successfully", source: "FeedbackView")
-                } else {
-                    DebugLogger.shared.error(
-                        "Feedback submission failed with status: \(httpResponse.statusCode)",
-                        source: "FeedbackView"
-                    )
-                }
-                return success
-            }
-            return false
-        } catch {
-            DebugLogger.shared.error(
-                "Network error submitting feedback: \(error.localizedDescription)",
-                source: "FeedbackView"
-            )
-            return false
+        await MainActor.run {
+            NSWorkspace.shared.open(url)
         }
+        DebugLogger.shared.info("Opened GitHub issue draft for feedback", source: "FeedbackView")
+        return true
     }
 }
 

@@ -10,7 +10,7 @@ struct AnalyticsPrivacyView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Anonymous Analytics")
                         .font(.system(size: 18, weight: .semibold))
-                    Text("What FluidVoice collects when analytics is enabled")
+                    Text("What Claude Code Voice collects when analytics is enabled")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -74,16 +74,16 @@ struct AnalyticsPrivacyView: View {
 
     private var contactInfoText: AttributedString {
         var text = AttributedString(
-            "If you have any concerns we would love to hear about it, please email alticdev@gmail.com or file an issue in our GitHub."
+            "If you have any concerns we would love to hear about it, please email support@aianswer.us or file an issue in our GitHub."
         )
 
-        if let emailRange = text.range(of: "alticdev@gmail.com") {
-            text[emailRange].link = URL(string: "mailto:alticdev@gmail.com")
+        if let emailRange = text.range(of: "support@aianswer.us") {
+            text[emailRange].link = URL(string: "mailto:support@aianswer.us")
             text[emailRange].foregroundColor = self.theme.palette.accent
         }
 
         if let githubRange = text.range(of: "GitHub") {
-            text[githubRange].link = URL(string: "https://github.com/altic-dev/FluidVoice")
+            text[githubRange].link = URL(string: "https://github.com/AI-Answer/Claude-Code-Voice")
             text[githubRange].foregroundColor = self.theme.palette.accent
         }
 

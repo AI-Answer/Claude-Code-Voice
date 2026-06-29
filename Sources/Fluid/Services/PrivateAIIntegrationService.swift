@@ -102,7 +102,7 @@ actor PrivateAIIntegrationService {
         let modelDirectoryPath = modelDirectoryURL.path
 
         guard targetPath == expectedURL.path || targetPath.hasPrefix(modelDirectoryPath + "/") else {
-            throw PrivateAIModelRemovalError(message: "This model is not in FluidVoice's model folder.")
+            throw PrivateAIModelRemovalError(message: "This model is not in Claude Code Voice's model folder.")
         }
 
         try FileManager.default.removeItem(at: targetURL)
@@ -178,11 +178,11 @@ private struct UnavailableAIIntegrationShim: PrivateAIIntegrationProviding {
     var modelDirectoryURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first?
-            .appendingPathComponent("FluidVoice", isDirectory: true)
+            .appendingPathComponent("Claude Code Voice", isDirectory: true)
             .appendingPathComponent(PrivateAIProviderFeature.shared.modelDirectoryName, isDirectory: true)
             .appendingPathComponent("Models", isDirectory: true)
             ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent("FluidVoice", isDirectory: true)
+            .appendingPathComponent("Claude Code Voice", isDirectory: true)
             .appendingPathComponent(PrivateAIProviderFeature.shared.modelDirectoryName, isDirectory: true)
             .appendingPathComponent("Models", isDirectory: true)
     }

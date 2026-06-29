@@ -233,8 +233,8 @@ struct ContentView: View {
     @State private var showInDock: Bool = SettingsStore.shared.showInDock
     @State private var showRestartPrompt: Bool = false
     @State private var didOpenAccessibilityPane: Bool = false
-    private let accessibilityRestartFlagKey = "FluidVoice_AccessibilityRestartPending"
-    private let hasAutoRestartedForAccessibilityKey = "FluidVoice_HasAutoRestartedForAccessibility"
+    private let accessibilityRestartFlagKey = "Claude Code Voice_AccessibilityRestartPending"
+    private let hasAutoRestartedForAccessibilityKey = "Claude Code Voice_HasAutoRestartedForAccessibility"
     @State private var accessibilityPollingTask: Task<Void, Never>?
     @State private var accessibilityGuidePanel: NSPanel?
     @State private var accessibilityGuideMonitorTask: Task<Void, Never>?
@@ -1128,7 +1128,7 @@ struct ContentView: View {
     }
 
     private func openIssueReportingPage() {
-        guard let url = URL(string: "https://github.com/altic-dev/Fluid-oss/issues/new/choose") else { return }
+        guard let url = URL(string: "https://github.com/AI-Answer/Claude-Code-Voice/issues/new/choose") else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -1166,7 +1166,7 @@ struct ContentView: View {
         }
         .listStyle(.sidebar)
         .animation(nil, value: self.selectedSidebarItem)
-        .navigationTitle("FluidVoice")
+        .navigationTitle("Claude Code Voice")
         .tint(self.theme.palette.accent)
     }
 
@@ -1394,8 +1394,8 @@ struct ContentView: View {
                     self.instructionStep(number: "2", text: "Choose **Allow** in the system dialog")
                 } else if self.asr.micStatus == .denied {
                     self.instructionStep(number: "1", text: "Click **Open Settings** above")
-                    self.instructionStep(number: "2", text: "Find **FluidVoice** in the microphone list")
-                    self.instructionStep(number: "3", text: "Toggle **FluidVoice ON** to allow access")
+                    self.instructionStep(number: "2", text: "Find **Claude Code Voice** in the microphone list")
+                    self.instructionStep(number: "3", text: "Toggle **Claude Code Voice ON** to allow access")
                 }
             }
             .padding(.leading, 4)
@@ -2286,7 +2286,7 @@ struct ContentView: View {
             self.pendingAIReprocessText = nil
         }
 
-        // When FluidVoice itself is frontmost, the bound editor already receives `finalText`.
+        // When Claude Code Voice itself is frontmost, the bound editor already receives `finalText`.
         // Avoid re-inserting or overwriting the clipboard in that self-target case.
         let shouldCopyToClipboard = shouldPersistOutputs &&
             SettingsStore.shared.copyTranscriptionToClipboard &&
@@ -3647,7 +3647,7 @@ extension ContentView {
     private func positionWindowBesideSystemSettings(requestID: UUID) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
             guard self.accessibilityGuideRequestID == requestID else { return }
-            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.title == "FluidVoice" }) ?? NSApp.keyWindow else {
+            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.title == "Claude Code Voice" }) ?? NSApp.keyWindow else {
                 return
             }
 
@@ -3816,7 +3816,7 @@ extension ContentView {
     private func cancelAccessibilityPermissionFlow() {
         self.finishAccessibilityPermissionFlow()
         NSApp.activate(ignoringOtherApps: true)
-        (NSApp.windows.first { $0.isVisible && $0.title == "FluidVoice" } ?? NSApp.keyWindow)?
+        (NSApp.windows.first { $0.isVisible && $0.title == "Claude Code Voice" } ?? NSApp.keyWindow)?
             .makeKeyAndOrderFront(nil)
     }
 
@@ -3881,7 +3881,7 @@ extension ContentView {
             return runningAppURL
         }
 
-        let installedURL = URL(fileURLWithPath: "/Applications/FluidVoice.app")
+        let installedURL = URL(fileURLWithPath: "/Applications/Claude Code Voice.app")
         if FileManager.default.fileExists(atPath: installedURL.path) {
             return installedURL
         }
